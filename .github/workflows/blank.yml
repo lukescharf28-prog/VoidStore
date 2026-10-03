@@ -1,0 +1,46 @@
+name: Build Void Store APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'VoidStore_Project.zip'
+      - '.github/workflows/build-voidstore-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unpack Void Store project
+        run: unzip -o VoidStore_Project.zip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build signed release APK
+        working-directory: VoidStore/android
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Rename APK
+        run: cp VoidStore/android/app/build/outputs/apk/release/app-release.apk VoidStore.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VoidStore-APK
+          path: VoidStore.apk
+          if-no-files-found: error
+          
