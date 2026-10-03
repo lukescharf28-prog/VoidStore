@@ -6,7 +6,7 @@ on:
     branches: [ main ]
     paths:
       - 'VoidStore_Project.zip'
-      - '.github/workflows/blank.yml'
+      - '.github/workflows/build-voidstore-apk.yml'
 
 jobs:
   build:
@@ -17,54 +17,30 @@ jobs:
       - name: Unpack Void Store project
         run: unzip -o VoidStore_Project.zip
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.0
-            cmdline-tools;latest
+      - uses: android-actions/setup-android@v3
 
-      - name: Accept Android SDK licenses
-        run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
+      - name: Install Android SDK 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Make Gradle wrapper executable
+      - name: Build signed release APK
         working-directory: VoidStore/android
-        run: chmod +x gradlew || true
-
-      - name: Build release APK
-        working-directory: VoidStore/android
-        run: |
-          ./gradlew --no-daemon clean :app:assembleRelease || gradle --no-daemon clean :app:assembleRelease
-
-      - name: Check APK output
-        run: find VoidStore -name "*.apk" -type f
+        run: gradle --no-daemon :app:assembleRelease
 
       - name: Rename APK
-        run: |
-          if [ -f VoidStore/android/app/build/outputs/apk/release/app-release.apk ]; then
-            cp VoidStore/android/app/build/outputs/apk/release/app-release.apk VoidStore.apk
-          elif [ -f VoidStore/android/app/build/outputs/apk/app-release.apk ]; then
-            cp VoidStore/android/app/build/outputs/apk/app-release.apk VoidStore.apk
-          else
-            echo "APK not found in expected location"
-            exit 1
-          fi
+        run: cp VoidStore/android/app/build/outputs/apk/release/app-release.apk VoidStore.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: VoidStore-APK
           path: VoidStore.apk
           if-no-files-found: error
+          
