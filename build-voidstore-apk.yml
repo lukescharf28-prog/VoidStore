@@ -22,25 +22,48 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: android-actions/setup-android@v3
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platform-tools
+            platforms;android-35
+            build-tools;35.0.0
+            cmdline-tools;latest
 
-      - name: Install Android SDK 35
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - name: Accept Android SDK licenses
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
+      - name: Make gradlew executable
+        working-directory: VoidStore/android
+        run: chmod +x gradlew || true
+
       - name: Build signed release APK
         working-directory: VoidStore/android
-        run: gradle --no-daemon :app:assembleRelease
+        run: |
+          ./gradlew --no-daemon clean :app:assembleRelease || gradle --no-daemon clean :app:assembleRelease
+
+      - name: Check APK output
+        run: find VoidStore -name "*.apk" -type f
 
       - name: Rename APK
-        run: cp VoidStore/android/app/build/outputs/apk/release/app-release.apk VoidStore.apk
+        run: |
+          if [ -f VoidStore/android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp VoidStore/android/app/build/outputs/apk/release/app-release.apk VoidStore.apk
+          elif [ -f VoidStore/android/app/build/outputs/apk/app-release.apk ]; then
+            cp VoidStore/android/app/build/outputs/apk/app-release.apk VoidStore.apk
+          else
+            echo "APK not found in expected location"
+            exit 1
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
           name: VoidStore-APK
           path: VoidStore.apk
           if-no-files-found: error
-          
